@@ -1,0 +1,8 @@
+showqrcodeservice_extracted/
+__pycache__/
+*.pyc
+*.bin
+*.log
+scratch/
+test_*.png
+.venv/

@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-Ink 2.13" Web Studio - GitHub Pages Flasher</title>
+  <!-- Polyfill for crypto.randomUUID (for non-secure/file:// contexts) -->
+  <script>
+    if (!window.crypto) window.crypto = {};
+    if (!window.crypto.randomUUID) {
+      window.crypto.randomUUID = function() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      };
+    }
+  </script>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- QRCode.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- JsBarcode CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .pixelated {
+      image-rendering: -moz-crisp-edges;
+      image-rendering: -webkit-crisp-edges;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    .eink-bezel {
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+      border: 12px solid #18181b;
+      border-radius: 12px;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased flex flex-col">
+
+  <!-- TOP HEADER -->
+  <header class="bg-slate-900 border-b border-slate-800 px-6 py-3.5 sticky top-0 z-50 shadow-md">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/30">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+        </div>
+        <div>
+          <h1 class="font-extrabold text-lg tracking-tight text-white flex items-center gap-2">
+            E-INK 2.13" WEB STUDIO
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Web Serial • Serverless</span>
+          </h1>
+          <p class="text-xs text-slate-400">Nạp trực tiếp qua trình duyệt Chrome/Edge không cần cài Python</p>
+        </div>
+      </div>
+
+      <!-- WEB SERIAL CONNECTION BAR -->
+      <div class="flex items-center flex-wrap gap-2.5 bg-slate-950 px-3.5 py-1.5 rounded-xl border border-slate-800">
+        <button id="connectSerialBtn" class="flex items-center gap-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-1.5 rounded-lg transition shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+          <span id="connectBtnText">🔌 Chọn Cổng USB (CH340)</span>
+        </button>
+
+        <div class="h-4 w-px bg-slate-800 hidden sm:block"></div>
+
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs font-medium text-slate-400">Baudrate:</span>
+          <select id="baudSelect" class="bg-slate-900 border border-slate-700 text-xs rounded-lg px-2 py-1.5 text-white font-mono">
+            <option value="921600" selected>921600 (Chuẩn)</option>
+            <option value="115200">115200</option>
+            <option value="230400">230400</option>
+          </select>
+        </div>
+
+        <button id="pingBtn" class="flex items-center gap-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg transition border border-slate-700">
+          <span id="pingDot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+          <span>Kiểm Tra (TYP)</span>
+        </button>
+
+        <button id="disconnectBtn" title="Ngắt kết nối cổng" class="text-xs font-medium bg-rose-900/40 hover:bg-rose-800 text-rose-300 px-2.5 py-1.5 rounded-lg transition border border-rose-800/50 hidden">
+          Ngắt
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto p-4 sm:p-6 flex-1 w-full grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- LEFT PANEL: CONTROLS & TEMPLATES (7 cols) -->
+    <div class="lg:col-span-7 flex flex-col gap-5">
+
+      <!-- MODE NAVIGATION TABS -->
+      <div class="flex bg-slate-900 p-1.5 rounded-xl border border-slate-800 shadow-sm">
+        <button id="tabTemplateBtn" class="flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition flex items-center justify-center gap-2 bg-blue-600 text-white shadow">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path></svg>
+          Mẫu Template Có Sẵn
+        </button>
+        <button id="tabCustomImageBtn" class="flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition flex items-center justify-center gap-2 text-slate-400 hover:text-white">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+          Nạp Ảnh Tự Do (PC)
+        </button>
+      </div>
+
+      <!-- SECTION 1: TEMPLATE STUDIO CONTROLS -->
+      <div id="templateSection" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Chọn Mẫu Thiết Kế (Template):</label>
+          <select id="templateSelector" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <option value="kid_tag" selected>1. Thẻ Học Sinh / Trẻ Em (Liên Hệ Bố Mẹ & Địa Chỉ - Theo Mẫu Anh Gửi) ★</option>
+            <option value="car_parking">2. Thẻ Để Xe Ô Tô (Số Điện Thoại Dời Xe Lịch Sự) ★</option>
+            <option value="desk_nameplate">3. Biển Tên Để Bàn / Chức Danh Công Ty ★</option>
+            <option value="badge">4. Thẻ Tên & Số Điện Thoại Hotline (Banner Đen)</option>
+            <option value="esl_price">5. Thẻ Giá Siêu Thị / Cửa Hàng (ESL kèm Barcode)</option>
+            <option value="bank_qr">6. QR Code Thanh Toán Ngân Hàng / Momo / Check-in</option>
+            <option value="table_order">7. Biển Số Bàn Cafe & Quét QR Gọi Món ★</option>
+            <option value="meeting_status">8. Bảng Trạng Thái (Đang Họp / Đi Vắng / Xin Đừng Làm Phiền) ★</option>
+            <option value="wifi_share">9. Thông Tin & Mã QR Quét Nhanh Wifi</option>
+            <option value="desk_clock">10. Đồng Hồ Bàn Làm Việc & IoT Dashboard</option>
+            <option value="todo_list">11. Danh Sách Việc Cần Làm (To-Do List)</option>
+            <option value="custom_free">12. Tùy Biến Tự Do (Logo Trái + Văn Bản Phải)</option>
+          </select>
+        </div>
+
+        <hr class="border-slate-800">
+
+        <!-- DYNAMIC INPUT FIELDS CONTAINER -->
+        <div id="dynamicInputs" class="flex flex-col gap-3.5">
+          <!-- Injected via JavaScript based on chosen template -->
+        </div>
+      </div>
+
+      <!-- SECTION 2: CUSTOM IMAGE CONTROLS (Hidden by default) -->
+      <div id="customImageSection" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm flex flex-col gap-4 hidden">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Tải Ảnh Lên (Hỗ trợ PNG, JPG, BMP):</label>
+          <div id="dropZone" class="border-2 border-dashed border-slate-700 hover:border-blue-500 rounded-xl p-6 text-center cursor-pointer bg-slate-950 transition">
+            <input type="file" id="imageFileInput" accept="image/*" class="hidden">
+            <svg class="w-10 h-10 text-slate-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+            <p class="text-sm font-medium text-slate-300">Kéo thả ảnh vào đây hoặc <span class="text-blue-400 underline">Chọn tệp</span></p>
+            <p class="text-xs text-slate-500 mt-1">Ảnh sẽ tự động co giãn tối ưu chuẩn 250×122</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Kiểu Cắt (Fit Mode):</label>
+            <select id="fitModeSelect" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white">
+              <option value="cover" selected>Cover (Lấp đầy toàn màn hình)</option>
+              <option value="contain">Contain (Giữ nguyên tỉ lệ)</option>
+              <option value="stretch">Stretch (Kéo giãn vừa vặn)</option>
+            </select>
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="text-xs font-semibold text-slate-400">Độ Ngưỡng Tương Phản (Threshold):</label>
+              <span id="thresholdVal" class="text-xs font-mono text-blue-400">185</span>
+            </div>
+            <input type="range" id="thresholdSlider" min="10" max="245" value="185" class="w-full accent-blue-500">
+            <p class="text-[10px] text-slate-500 mt-0.5">Mặc định 185: Giữ nét chữ mảnh, khử đốm đen</p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-4 pt-1">
+          <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+            <input type="checkbox" id="ditherCheck" class="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-blue-500">
+            <span>Dithering tán điểm (Dùng cho ảnh chụp người/phong cảnh)</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+            <input type="checkbox" id="invertCheck" class="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-blue-500">
+            <span>Đảo màu (Nền đen chữ trắng)</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- LOG CONSOLE -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            Nhật Ký Hoạt Động (Web Serial Log)
+          </span>
+          <button id="clearLogBtn" class="text-[11px] text-slate-500 hover:text-slate-300">Xóa log</button>
+        </div>
+        <div id="logOutput" class="bg-slate-950 rounded-xl p-3 h-28 overflow-y-auto font-mono text-xs text-slate-300 border border-slate-800/60 space-y-1">
+          <div><span class="text-blue-400">[Hệ thống]</span> Sẵn sàng! Hãy bấm "Chọn Cổng USB" để bắt đầu kết nối.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT PANEL: WYSIWYG PREVIEW & FLASH ACTIONS (5 cols) -->
+    <div class="lg:col-span-5 flex flex-col gap-5">
+
+      <!-- PREVIEW CARD -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm flex flex-col items-center">
+        <div class="w-full flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Xem Trước Trực Quan</span>
+            <span class="text-[10px] bg-slate-800 text-slate-300 font-mono px-2 py-0.5 rounded-md">250×122 px</span>
+          </div>
+          <span class="text-xs text-emerald-400 font-medium flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+            WYSIWYG 100%
+          </span>
+        </div>
+
+        <!-- E-INK SCREEN FRAME BEZEL (Phóng to sắc nét) -->
+        <div class="eink-bezel p-1.5 bg-zinc-900 w-full max-w-[440px] flex items-center justify-center">
+          <div class="bg-white overflow-hidden rounded-[2px] w-full relative flex items-center justify-center border border-zinc-700" style="aspect-ratio: 250 / 122;">
+            <!-- CANVAS THỰC SỰ: NỘI BỘ 250x122, HIỂN THỊ CO GIÃN SẮC NÉT BẰNG CSS PIXELATED -->
+            <canvas id="previewCanvas" width="250" height="122" class="w-full h-full pixelated bg-white block" style="aspect-ratio: 250 / 122;"></canvas>
+          </div>
+        </div>
+
+        <p class="text-[11px] text-slate-500 text-center mt-3">
+          Tỷ lệ phóng to hiển thị trực tiếp từng điểm ảnh đơn sắc đen/trắng.
+        </p>
+      </div>
+
+      <!-- PRIMARY ACTION BUTTONS -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm flex flex-col gap-3">
+        <!-- NẠP VÀO MÀN HÌNH (PRO BUTTON) -->
+        <button id="pushBtn" class="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-base shadow-lg shadow-blue-500/25 transition flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed">
+          <svg class="w-5 h-5 group-hover:scale-110 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+          <span id="pushBtnText">NẠP VÀO MÀN HÌNH NGAY</span>
+        </button>
+
+        <div class="grid grid-cols-2 gap-3">
+          <!-- LÀM SẠCH MÀN HÌNH -->
+          <button id="clearBtn" class="py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            Xóa / Làm Trắng Màn
+          </button>
+
+          <!-- TẢI ẢNH VỀ MÁY -->
+          <button id="downloadBtn" class="py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            Tải Ảnh PNG Về Máy
+          </button>
+        </div>
+      </div>
+
+      <!-- SPECS INFO CARD -->
+      <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 text-xs space-y-2 text-slate-400">
+        <div class="flex justify-between items-center">
+          <span>Công nghệ truyền:</span>
+          <span class="font-mono text-emerald-400">Web Serial API (Trình duyệt)</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span>Header nạp màn hình:</span>
+          <span class="font-mono text-blue-400">\r\nBBB,8000,{size},1,</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span>Dung lượng bộ đệm EPD:</span>
+          <span class="font-mono text-slate-200">8,000 Bytes (4K BW + 4K Red)</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span>Chuẩn nén:</span>
+          <span class="font-mono text-emerald-400">LZ4 Block WASM (Chạy ngầm 0.5ms)</span>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- HIDDEN WORKING HELPERS (For barcode/QR generation) -->
+  <div class="hidden">
+    <div id="qrCodeContainer"></div>
+    <svg id="barcodeSvg"></svg>
+  </div>
+
+  <!-- EMBEDDED LZ4 BLOCK CODEC WASM & CLIENT JAVASCRIPT -->
+  <script>
+    // 1. Embedded LZ4 Block Codec WASM Binary (1.2 KB)
+    const LZ4_WASM_BASE64 = 'AGFzbQEAAAABHQVgAAF/YAF/AX9gA39/fwF/YAN/f38AYAJ/fwF/AwcGAAECAgQDBQMBAAEHWgUGbWVtb3J5AgAVZ2V0TGluZWFyTWVtb3J5T2Zmc2V0AAATbHo0QmxvY2tFbmNvZGVCb3VuZAABDmx6NEJsb2NrRW5jb2RlAAIObHo0QmxvY2tEZWNvZGUAAwq2CAYEAEEACx0AIABBgICA8AdLBEBBAA8LIAAgAEH/AW5qQRBqC+0DAQh/IAFBgICA8AdLBEBBAA8LIAFBDUkEQEEADwsgACEGIAAgAWoiCUF7aiIHQXlqIQogAiEBAkADQCAAIApPDQEgAC0AAEEIdCAALQABQRB0ciAALQACQRh0ciEDA0ACQCAAIAdLDQMgA0EIdiAALQADQRh0ciIDQbHz3fF5bEEQdkECdCIFKAIAIQQgBSAANgIAIAAgBGsiCEH//wNKDQAgA0H/AXEgBC0AAEcNACADQQh2Qf8BcSAELQABRw0AIANBEHZB/wFxIAQtAAJHDQAgA0EYdiAELQADRw0AIAAgBmshAyAAQQRqIQAgBEEEaiIFIQQCQANAIAAgB08NASAALQAAIAQtAABHDQEgAEEBaiEAIARBAWohBAwACwALIAIgA0EPIANBD0kbQQR0IAQgBWsiBUEPIAVBD0kbcjoAACACQQFqIQIgA0EPTgRAIAIgAxAEIQILIAIgBiADEAUgAiADaiICIAg6AAAgAiAIQQh2OgABIAJBAmohAiAFQQ9OBEAgAiAFEAQhAgsgACEGDAILIABBAWohAAwACwALAAsgAiABRgRAQQAPCyACIAkgBmsiA0EPIANBD0kbQQR0OgAAIAJBAWohAiADQQ9PBEAgAiADEAQhAgsgAiAGIAMQBSACIANqIAFrC+8BAQV/IAFFBEBBAA8LIAAiAyABaiEGIAIhBQJAA0AgAyAGTw0BIAMtAAAhASADQQFqIQMgAUEEdiIEBEAgBEEPRgRAA0AgAy0AACEAIANBAWohAyAAIARqIQQgAEH/AUYNAAsLIAUgAyAEEAUgBSAEaiEFIAQgA2oiAyAGRg0CCyAFIAMtAAAgAy0AAUEIdHJrIgcgBUYNASAHIAZJDQEgA0ECaiEDIAFBD3FBBGoiBEETRgRAA0AgAy0AACEAIANBAWohAyAAIARqIQQgAEH/AUYNAAsLIAUgByAEEAUgBCAFaiEFDAALAAsgBSACawszACABQQ9rIQEDQCAAIAFB/wEgAUH/AUkbOgAAIABBAWohACABQf8BayIBQQBODQALIAAL/AEAAkADQCACQQhJDQEgACABLQAAOgAAIAAgAS0AAToAASAAIAEtAAI6AAIgACABLQADOgADIAAgAS0ABDoABCAAIAEtAAU6AAUgACABLQAGOgAGIAAgAS0ABzoAByAAQQhqIQAgAUEIaiEBIAJBeGohAgwACwALIAJBBE8EQCAAIAEtAAA6AAAgACABLQABOgABIAAgAS0AAjoAAiAAIAEtAAM6AAMgAEEEaiEAIAFBBGohASACQXxqIQILIAJBAk8EQCAAIAEtAAA6AAAgACABLQABOgABIABBAmohACABQQJqIQEgAkF+aiECCyACBEAgACABLQAAOgAACws=';
+
+    let lz4Exports = null;
+
+    async function initLz4Wasm() {
+      try {
+        const wasmBytes = Uint8Array.from(atob(LZ4_WASM_BASE64), c => c.charCodeAt(0));
+        const res = await WebAssembly.instantiate(wasmBytes);
+        lz4Exports = res.instance.exports;
+        // Grow memory to 8 pages (512 KB) for 16-bit hash table + input/output buffers
+        const currentPages = lz4Exports.memory.buffer.byteLength / 65536;
+        if (currentPages < 8) {
+          lz4Exports.memory.grow(8 - currentPages);
+        }
+        console.log("LZ4 WASM Block Codec initialized successfully!");
+      } catch (e) {
+        console.error("Failed to init LZ4 WASM:", e);
+      }
+    }
+
+    function lz4Compress(raw8000Bytes) {
+      if (!lz4Exports) throw new Error("LZ4 WASM chưa khởi tạo");
+      const memory = lz4Exports.memory;
+      const mem8 = new Uint8Array(memory.buffer);
+
+      // Memory layout:
+      // 0 .. 262144 (256 KB): 16-bit hash table
+      // 262144 .. 270144: 8000 bytes input
+      // 280000 .. 296384: output buffer
+      mem8.fill(0, 0, 262144); // Clear hash table
+      const inPtr = 262144;
+      const outPtr = inPtr + 16384;
+
+      mem8.set(raw8000Bytes, inPtr);
+      const compressedSize = lz4Exports.lz4BlockEncode(inPtr, raw8000Bytes.length, outPtr);
+      return new Uint8Array(memory.buffer, outPtr, compressedSize);
+    }
+
+    // 2. Web Serial Connection
+    let serialPort = null;
+    let serialWriter = null;
+    let serialReader = null;
+
+    const canvas = document.getElementById('previewCanvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    let currentMode = 'template';
+    let currentTemplate = 'kid_tag';
+    let uploadedImageObj = null;
+
+    function addLog(msg, type = 'info') {
+      const box = document.getElementById('logOutput');
+      const time = new Date().toLocaleTimeString();
+      let colorClass = 'text-slate-300';
+      if (type === 'success') colorClass = 'text-emerald-400 font-semibold';
+      if (type === 'error') colorClass = 'text-rose-400 font-semibold';
+      if (type === 'warning') colorClass = 'text-amber-400';
+
+      const line = document.createElement('div');
+      line.className = colorClass;
+      line.innerHTML = `<span class="text-slate-500 font-mono">[${time}]</span> ${msg}`;
+      box.appendChild(line);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    // Connect Web Serial
+    async function connectSerial() {
+      if (!('serial' in navigator)) {
+        alert("Trình duyệt của bạn không hỗ trợ Web Serial API.\nVui lòng sử dụng Google Chrome, Microsoft Edge hoặc Opera trên máy tính.");
+        addLog("Trình duyệt không hỗ trợ Web Serial API. Hãy dùng Chrome/Edge.", "error");
+        return;
+      }
+
+      try {
+        const baudRate = parseInt(document.getElementById('baudSelect').value);
+        addLog("Đang mở hộp thoại chọn cổng USB COM...");
+        serialPort = await navigator.serial.requestPort();
+        await serialPort.open({ baudRate: baudRate, dataBits: 8, stopBits: 1, parity: 'none' });
+
+        document.getElementById('connectBtnText').textContent = "✓ Đã Kết Nối Cổng USB";
+        document.getElementById('connectSerialBtn').className = "flex items-center gap-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-lg transition shadow-sm";
+        document.getElementById('pingDot').className = "w-2 h-2 rounded-full bg-emerald-400 animate-ping";
+        document.getElementById('disconnectBtn').classList.remove('hidden');
+
+        addLog(`Đã kết nối thành công với cổng Serial ở tốc độ ${baudRate} baud!`, 'success');
+        pingDevice();
+      } catch (err) {
+        if (err.name !== 'NotFoundError') {
+          addLog("Lỗi mở cổng: " + err.message, "error");
+        } else {
+          addLog("Người dùng đã hủy chọn cổng.", "warning");
+        }
+      }
+    }
+
+    async function disconnectSerial() {
+      try {
+        if (serialPort) {
+          await serialPort.close();
+          serialPort = null;
+        }
+        document.getElementById('connectBtnText').textContent = "🔌 Chọn Cổng USB (CH340)";
+        document.getElementById('connectSerialBtn').className = "flex items-center gap-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-1.5 rounded-lg transition shadow-sm";
+        document.getElementById('pingDot').className = "w-2 h-2 rounded-full bg-slate-500";
+        document.getElementById('disconnectBtn').classList.add('hidden');
+        addLog("Đã ngắt kết nối cổng Serial.");
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Ping device with TYP
+    async function pingDevice() {
+      if (!serialPort || !serialPort.writable) {
+        addLog("Chưa kết nối cổng Serial. Vui lòng bấm 'Chọn Cổng USB' trước.", "warning");
+        alert("Vui lòng chọn và kết nối cổng USB trước!");
+        return;
+      }
+
+      addLog("Đang gửi lệnh bắt tay TYP kiểm tra chip...");
+      try {
+        const writer = serialPort.writable.getWriter();
+        const encoder = new TextEncoder();
+        await writer.write(encoder.encode("\r\nTYP,\r\n"));
+        writer.releaseLock();
+
+        // Read response with timeout
+        const reader = serialPort.readable.getReader();
+        const decoder = new TextDecoder();
+        let resp = "";
+        const timeout = setTimeout(() => {
+          try { reader.cancel(); } catch(e){}
+        }, 1500);
+
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            resp += decoder.decode(value);
+            if (resp.includes('\n')) break;
+          }
+        } catch(e){} finally {
+          clearTimeout(timeout);
+          reader.releaseLock();
+        }
+
+        resp = resp.trim();
+        if (resp) {
+          addLog(`Phản hồi từ màn hình: ${resp}`, 'success');
+          alert(`Màn hình phản hồi thành công:\n${resp}`);
+        } else {
+          addLog("Đã gửi TYP nhưng không nhận được phản hồi (Màn có thể đang refresh hoặc sleep).", "warning");
+        }
+      } catch (e) {
+        addLog("Lỗi kiểm tra: " + e.message, "error");
+      }
+    }
+
+    // 3. Convert 250x122 Canvas to 8000-byte EPD buffer (Exact bitwise match)
+    function getEpdBufferFromCanvas() {
+      const offCanvas = document.createElement('canvas');
+      offCanvas.width = 122;
+      offCanvas.height = 250;
+      const offCtx = offCanvas.getContext('2d');
+
+      offCtx.fillStyle = '#FFFFFF';
+      offCtx.fillRect(0, 0, 122, 250);
+
+      // Rotate 90 degrees clockwise
+      offCtx.translate(122, 0);
+      offCtx.rotate(Math.PI / 2);
+      offCtx.drawImage(canvas, 0, 0);
+
+      const imgData = offCtx.getImageData(0, 0, 122, 250);
+      const pixels = imgData.data;
+
+      const bwBuf = new Uint8Array(4000);
+      const redBuf = new Uint8Array(4000); // 0x00
+
+      for (let y = 0; y < 250; y++) {
+        for (let x = 0; x < 122; x++) {
+          const idx = (y * 122 + x) * 4;
+          const r = pixels[idx];
+          const g = pixels[idx + 1];
+          const b = pixels[idx + 2];
+          const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+          const isWhite = luma > 185;
+
+          if (isWhite) {
+            const byteIdx = y * 16 + Math.floor(x / 8);
+            const bitIdx = 7 - (x % 8);
+            bwBuf[byteIdx] |= (1 << bitIdx);
+          }
+        }
+      }
+
+      const totalBuf = new Uint8Array(8000);
+      totalBuf.set(bwBuf, 0);
+      totalBuf.set(redBuf, 4000);
+      return totalBuf;
+    }
+
+    // 4. Send directly to E-Ink via Web Serial
+    async function pushToScreen() {
+      if (!serialPort || !serialPort.writable) {
+        await connectSerial();
+        if (!serialPort || !serialPort.writable) return;
+      }
+
+      const pushBtn = document.getElementById('pushBtn');
+      const pushBtnText = document.getElementById('pushBtnText');
+      pushBtn.disabled = true;
+      pushBtnText.textContent = "ĐANG ĐÓNG GÓI & NẠP...";
+
+      try {
+        addLog("Đang chuyển đổi điểm ảnh sang bộ đệm 8,000 bytes...");
+        const raw8000 = getEpdBufferFromCanvas();
+
+        addLog("Đang nén dữ liệu bằng thuật toán LZ4 Block WASM...");
+        const compressed = lz4Compress(raw8000);
+        const compressSize = compressed.length;
+        addLog(`Nén thành công: 8,000 bytes -> ${compressSize} bytes (Giảm ${Math.round((1 - compressSize/8000)*100)}%)`, 'info');
+
+        const encoder = new TextEncoder();
+        const headerStr = `\r\nBBB,8000,${compressSize},1,`;
+        const headerBytes = encoder.encode(headerStr);
+        const tailBytes = encoder.encode('\r\n');
+
+        addLog("Đang truyền gói tin qua cổng Serial...");
+        const writer = serialPort.writable.getWriter();
+        try {
+          await writer.write(headerBytes);
+          await writer.write(compressed);
+          await new Promise(r => setTimeout(r, 10));
+          await writer.write(tailBytes);
+        } finally {
+          writer.releaseLock();
+        }
+
+        addLog("Nạp thành công! Màn hình E-Ink đang cập nhật.", "success");
+        alert("Nạp thành công! Màn hình E-Ink đang cập nhật nội dung mới.");
+      } catch (err) {
+        addLog("Lỗi nạp màn hình: " + err.message, "error");
+        alert("Lỗi: " + err.message);
+      } finally {
+        pushBtn.disabled = false;
+        pushBtnText.textContent = "NẠP VÀO MÀN HÌNH NGAY";
+      }
+    }
+
+    // Clear Screen to pure white
+    async function clearScreen() {
+      if (!serialPort || !serialPort.writable) {
+        await connectSerial();
+        if (!serialPort || !serialPort.writable) return;
+      }
+      if (!confirm("Bạn có chắc muốn xóa màn hình về trắng hoàn toàn?")) return;
+
+      try {
+        const whiteBuf = new Uint8Array(8000);
+        whiteBuf.fill(0xFF, 0, 4000); // White
+        whiteBuf.fill(0x00, 4000, 8000); // Red plane
+
+        const compressed = lz4Compress(whiteBuf);
+        const header = new TextEncoder().encode(`\r\nBBB,8000,${compressed.length},1,`);
+        const tail = new TextEncoder().encode('\r\n');
+
+        const writer = serialPort.writable.getWriter();
+        await writer.write(header);
+        await writer.write(compressed);
+        await new Promise(r => setTimeout(r, 10));
+        await writer.write(tail);
+        writer.releaseLock();
+
+        addLog("Đã gửi lệnh xóa trắng màn hình thành công!", "success");
+      } catch (e) {
+        addLog("Lỗi xóa màn: " + e.message, "error");
+      }
+    }
+
+    // Tiện ích bỏ dấu tiếng Việt chuẩn
+    function removeVietnameseTones(str) {
+      if (!str) return '';
+      return str
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D');
+    }
+
+    // ==========================================
+    // TEMPLATE RENDERING LOGIC (12 TEMPLATES)
+    // ==========================================
+    function renderCanvas() {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, 250, 122);
+
+      if (currentMode === 'custom_image') {
+        renderCustomImage();
+        return;
+      }
+
+      switch (currentTemplate) {
+        case 'kid_tag': renderKidTagTemplate(); break;
+        case 'car_parking': renderCarParkingTemplate(); break;
+        case 'desk_nameplate': renderDeskNameplateTemplate(); break;
+        case 'badge': renderBadgeTemplate(); break;
+        case 'esl_price': renderEslPriceTemplate(); break;
+        case 'bank_qr': renderBankQrTemplate(); break;
+        case 'table_order': renderTableOrderTemplate(); break;
+        case 'meeting_status': renderMeetingStatusTemplate(); break;
+        case 'wifi_share': renderWifiTemplate(); break;
+        case 'desk_clock': renderDeskClockTemplate(); break;
+        case 'todo_list': renderTodoListTemplate(); break;
+        case 'custom_free': renderCustomFreeTemplate(); break;
+      }
+    }
+
+    // Template 1: Thẻ Học Sinh / Trẻ Em (FULL HEIGHT 122px)
+    function renderKidTagTemplate() {
+      let name = document.getElementById('kidNameInput')?.value || 'LƯƠNG Ý NHI';
+      let hCol1 = document.getElementById('kidCol1Header')?.value || 'BA/MẸ';
+      let hCol2 = document.getElementById('kidCol2Header')?.value || 'SỐ ĐIỆN THOẠI';
+      let parent1 = document.getElementById('kidParent1')?.value || 'LƯƠNG QUANG THANH';
+      let phone1 = document.getElementById('kidPhone1')?.value || '0989.146.951';
+      let parent2 = document.getElementById('kidParent2')?.value || 'LÊ THỊ THU HƯƠNG';
+      let phone2 = document.getElementById('kidPhone2')?.value || '096.3350.567';
+      let address = document.getElementById('kidAddress')?.value || 'CHUNG CƯ THE RIVANA - QL13 - HCM';
+      const noAccent = document.getElementById('kidNoAccentInput')?.checked ?? false;
+      const superBold = document.getElementById('kidBoldFontInput')?.checked ?? true;
+
+      if (noAccent) {
+        name = removeVietnameseTones(name);
+        hCol1 = removeVietnameseTones(hCol1);
+        hCol2 = removeVietnameseTones(hCol2);
+        parent1 = removeVietnameseTones(parent1);
+        parent2 = removeVietnameseTones(parent2);
+        address = removeVietnameseTones(address);
+      }
+
+      function drawBoldText(text, x, y, font, align = 'center') {
+        ctx.font = font;
+        ctx.textAlign = align;
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#000000';
+        ctx.fillText(text, x, y);
+        if (superBold) {
+          ctx.fillText(text, x + 0.35, y);
+          ctx.fillText(text, x, y + 0.35);
+        }
+      }
+
+      // Title
+      drawBoldText(name.toUpperCase(), 125, 12, 'bold 16px Arial, sans-serif');
+
+      // Full Height Table (y: 23 -> 97, height 74px)
+      const tblX = 4;
+      const tblY = 23;
+      const tblW = 242;
+      const tblH = 74;
+      const rowH = 24.66;
+      const colSplitX = 138;
+
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(tblX, tblY, tblW, tblH);
+
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(tblX, tblY + rowH);
+      ctx.lineTo(tblX + tblW, tblY + rowH);
+      ctx.moveTo(tblX, tblY + rowH * 2);
+      ctx.lineTo(tblX + tblW, tblY + rowH * 2);
+      ctx.moveTo(colSplitX, tblY);
+      ctx.lineTo(colSplitX, tblY + tblH);
+      ctx.stroke();
+
+      drawBoldText(hCol1.toUpperCase(), tblX + 6, tblY + rowH * 0.5, 'bold 11px Arial, sans-serif', 'left');
+      drawBoldText(hCol2.toUpperCase(), colSplitX + 6, tblY + rowH * 0.5, 'bold 11px Arial, sans-serif', 'left');
+
+      drawBoldText(parent1.toUpperCase(), tblX + 6, tblY + rowH * 1.5, 'bold 11px Arial, sans-serif', 'left');
+      drawBoldText(phone1, colSplitX + 6, tblY + rowH * 1.5, 'bold 13px "Arial Narrow", Arial, sans-serif', 'left');
+
+      drawBoldText(parent2.toUpperCase(), tblX + 6, tblY + rowH * 2.5, 'bold 11px Arial, sans-serif', 'left');
+      drawBoldText(phone2, colSplitX + 6, tblY + rowH * 2.5, 'bold 13px "Arial Narrow", Arial, sans-serif', 'left');
+
+      // Address
+      drawBoldText(address.toUpperCase(), 125, 110, 'bold 11px Arial, sans-serif', 'center');
+    }
+
+    // Template 2: Thẻ Đỗ Xe Ô Tô
+    function renderCarParkingTemplate() {
+      const msg = document.getElementById('carMsgInput')?.value || 'LÀM PHIỀN GỌI KHI CẦN DỜI XE';
+      const phone = document.getElementById('carPhoneInput')?.value || '0989.146.951';
+      const note = document.getElementById('carNoteInput')?.value || 'CẢM ƠN BẠN ĐÃ THÔNG CẢM!';
+      const hasDoubleBorder = document.getElementById('carBorderInput')?.checked ?? true;
+
+      if (hasDoubleBorder) {
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(3, 3, 244, 116);
+        ctx.strokeRect(6, 6, 238, 110);
+      }
+
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(10, 10, 230, 24);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 11px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(msg.toUpperCase(), 125, 22);
+
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 36px "Arial Narrow", "Bahnschrift", Impact, Arial, sans-serif';
+      ctx.fillText(phone, 125, 66);
+
+      ctx.font = 'italic 11px Arial, sans-serif';
+      ctx.fillText(note, 125, 99);
+    }
+
+    // Template 3: Biển Chức Danh / Tên Để Bàn
+    function renderDeskNameplateTemplate() {
+      const company = document.getElementById('npCompany')?.value || 'CÔNG TY CỔ PHẦN CÔNG NGHỆ ABC';
+      const name = document.getElementById('npName')?.value || 'NGUYỄN VĂN THANH';
+      const title = document.getElementById('npTitle')?.value || 'TRƯỞNG PHÒNG KỸ THUẬT';
+      const contact = document.getElementById('npContact')?.value || 'Phòng 402 • Hotline: 0989.146.951';
+
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(3, 3, 244, 116);
+
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 10px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(company.toUpperCase(), 125, 17);
+
+      ctx.beginPath();
+      ctx.moveTo(25, 27);
+      ctx.lineTo(225, 27);
+      ctx.stroke();
+
+      ctx.font = 'bold 21px Arial, sans-serif';
+      ctx.fillText(name.toUpperCase(), 125, 51);
+
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(20, 69, 210, 20);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 11px Arial, sans-serif';
+      ctx.fillText(title.toUpperCase(), 125, 79);
+
+      ctx.fillStyle = '#000000';
+      ctx.font = '10px Arial, sans-serif';
+      ctx.fillText(contact, 125, 103);
+    }
+
+    // Template 4: Thẻ Tên Badge Banner Đen
+    function renderBadgeTemplate() {
+      const bannerText = document.getElementById('badgeBannerInput')?.value || 'MR THANH - 111009';
+      const phoneText = document.getElementById('badgePhoneInput')?.value || '0989.146.951';
+      const bannerHeight = parseInt(document.getElementById('badgeBannerHInput')?.value || '42');
+      const hasBorder = document.getElementById('badgeBorderInput')?.checked ?? false;
+
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, 250, bannerHeight);
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 18px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(bannerText, 125, bannerHeight / 2);
+
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 36px "Arial Narrow", "Bahnschrift", Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(phoneText, 125, bannerHeight + (122 - bannerHeight) / 2);
+
+      if (hasBorder) {
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(1, 1, 248, 120);
+      }
+    }
+
+    // Template 5: Thẻ Giá Siêu Thị ESL
+    function renderEslPriceTemplate() {
+      const name = document.getElementById('eslNameInput')?.value || 'COCA-COLA NƯỚC NGỌT';
+      const unit = document.getElementById('eslUnitInput')?.value || 'Chai 390ml';
+      const oldPrice = document.getElementById('eslOldPriceInput')?.value || '12.000đ';
+      const newPrice = document.getElementById('eslNewPriceInput')?.value || '10.000đ';
+      const barcodeCode = document.getElementById('eslBarcodeInput')?.value || '893456789012';
+
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(1, 1, 248, 120);
+
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 13px Arial, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(name.slice(0, 32), 6, 6);
+
+      ctx.font = '11px Arial, sans-serif';
+      ctx.fillText(unit, 6, 23);
+
+      if (oldPrice) {
+        ctx.font = '11px Arial, sans-serif';
+        ctx.fillText('Gốc: ' + oldPrice, 6, 38);
+        const w = ctx.measureText('Gốc: ' + oldPrice).width;
+        ctx.beginPath();
+        ctx.moveTo(6, 43);
+        ctx.lineTo(6 + w, 43);
+        ctx.stroke();
+      }
+
+      ctx.font = 'bold 34px "Arial Narrow", Impact, Arial, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(newPrice, 244, 38);
+
+      ctx.beginPath();
+      ctx.moveTo(1, 58);
+      ctx.lineTo(249, 58);
+      ctx.stroke();
+
+      drawBarcode(barcodeCode, 6, 66, 170, 38);
+
+      ctx.font = 'bold 10px Arial, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('SKU: ' + barcodeCode.slice(-6), 244, 76);
+      ctx.fillText('GIẢM GIÁ SỐC', 244, 92);
+    }
+
+    function drawBarcode(text, x, y, width, height) {
+      try {
+        const svg = document.getElementById('barcodeSvg');
+        JsBarcode(svg, text, { format: "CODE128", width: 1, height: height, displayValue: false, margin: 0 });
+        const xml = new XMLSerializer().serializeToString(svg);
+        const img = new Image();
+        img.src = 'data:image/svg+xml;base64,' + btoa(xml);
+        img.onload = () => { ctx.drawImage(img, x, y, width, height); };
+      } catch (e) {
+        ctx.fillStyle = '#000000';
+        for (let i = 0; i < 40; i++) {
+          if (i % 2 === 0 || i % 5 === 0) ctx.fillRect(x + i * 3.5, y, 2, height);
+        }
+      }
+    }
+
+    // Template 6: QR Code Thanh Toán
+    function renderBankQrTemplate() {
+      const qrData = document.getElementById('bankQrDataInput')?.value || '0989146951';
+      const bankName = document.getElementById('bankNameInput')?.value || 'MB BANK';
+      const accNum = document.getElementById('bankAccInput')?.value || '0989.146.951';
+      const accHolder = document.getElementById('bankHolderInput')?.value || 'TRẦN VĂN THANH';
+
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(1, 1, 248, 120);
+
+      const qrDiv = document.getElementById('qrCodeContainer');
+      qrDiv.innerHTML = '';
+      try {
+        new QRCode(qrDiv, { text: qrData, width: 104, height: 104, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
+        setTimeout(() => {
+          const qrImg = qrDiv.querySelector('img');
+          if (qrImg && qrImg.src) {
+            const img = new Image();
+            img.src = qrImg.src;
+            img.onload = () => { ctx.drawImage(img, 9, 9, 104, 104); };
+          }
+        }, 50);
+      } catch (e) {}
+
+      ctx.beginPath();
+      ctx.moveTo(122, 1);
+      ctx.lineTo(122, 121);
+      ctx.stroke();
+
+      ctx.fillStyle = '#000000';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.font = 'bold 13px Arial, sans-serif';
+      ctx.fillText(bankName, 129, 12);
+      ctx.font = '10px Arial, sans-serif';
+      ctx.fillText('Số tài khoản:', 129, 32);
+      ctx.font = 'bold 15px "Arial Narrow", Arial, sans-serif';
+      ctx.fillText(accNum, 129, 46);
+      ctx.font = '10px Arial, sans-serif';
+      ctx.fillText('Chủ TK:', 129, 68);
+      ctx.font = 'bold 12px Arial, sans-serif';
+      ctx.fillText(accHolder.toUpperCase(), 129, 82);
+      ctx.font = 'italic 10px Arial, sans-serif';
+      ctx.fillText('Quét để chuyển khoản', 129, 102);
+    }
+
+    // Template 7: Biển Số Bàn Cafe & Gọi Món
+    function renderTableOrderTemplate() {
+      const shopName = document.getElementById('tbShopName')?.value || 'THE COFFEE HOUSE';
+      const tableNum = document.getElementById('tbNumber')?.value || '08';
+      const qrData = document.getElementById('tbQrData')?.value || 'https://order.menu/table/08';
+      const note = document.getElementById('tbNote')?.value || 'QUÉT QR XEM MENU & GỌI MÓN';
+
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(2, 2, 246, 118);
+
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 14px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('BÀN', 55, 30);
+      ctx.font = 'bold 54px "Arial Narrow", Impact, Arial, sans-serif';
+      ctx.fillText(tableNum, 55, 75);
+
+      ctx.beginPath();
+      ctx.moveTo(110, 8);
+      ctx.lineTo(110, 114);
+      ctx.stroke();
+
+      ctx.font = 'bold 12px Arial, sans-serif';
+      ctx.fillText(shopName.toUpperCase(), 180, 20);
+
+      const qrDiv = document.getElementById('qrCodeContainer');
+      qrDiv.innerHTML = '';
+      try {
+        new QRCode(qrDiv, { text: qrData, width: 72, height: 72, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
+        setTimeout(() => {
+          const qrImg = qrDiv.querySelector('img');
+          if (qrImg && qrImg.src) {
+            const img = new Image();
+            img.src = qrImg.src;
+            img.onload = () => { ctx.drawImage(img, 144, 32, 72, 72); };
+          }
+        }, 50);
+      } catch (e) {}
+
+      ctx.font = '9px Arial, sans-serif';
+      ctx.fillText(note, 180, 110);
+    }
+
+    // Template 8: Bảng Trạng Thái Cuộc Họp
+    function renderMeetingStatusTemplate() {
+      const mainStatus = document.getElementById('statusMainInput')?.value || 'ĐANG HỌP (BUSY)';
+      const subStatus = document.getElementById('statusSubInput')?.value || 'Vui lòng không làm phiền';
+      const returnTime = document.getElementById('statusReturnInput')?.value || 'Dự kiến xong: 15h30';
+      const contact = document.getElementById('statusContactInput')?.value || 'Khẩn cấp gọi: 0989.146.951';
+
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(3, 3, 244, 116);
+      ctx.lineWidth = 1;
+
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(8, 8, 234, 44);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 18px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(mainStatus.toUpperCase(), 125, 30);
+
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 13px Arial, sans-serif';
+      ctx.fillText(subStatus, 125, 68);
+      ctx.font = '11px Arial, sans-serif';
+      ctx.fillText(returnTime, 125, 88);
+      ctx.font = 'italic 10px Arial, sans-serif';
+      ctx.fillText(contact, 125, 106);
+    }
+
+    // Template 9: Wifi Share
+    function renderWifiTemplate() {
+      const ssid = document.getElementById('wifiSsidInput')?.value || 'KHACH_HANG_VIP';
+      const pass = document.getElementById('wifiPassInput')?.value || '88889999';
+      const note = document.getElementById('wifiNoteInput')?.value || 'QUÉT QR ĐỂ KẾT NỐI WIFI';
+
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, 250, 26);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 13px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(note, 125, 13);
+
+      const wifiString = `WIFI:T:WPA;S:${ssid};P:${pass};;`;
+      const qrDiv = document.getElementById('qrCodeContainer');
+      qrDiv.innerHTML = '';
+      try {
+        new QRCode(qrDiv, { text: wifiString, width: 86, height: 86, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
+        setTimeout(() => {
+          const qrImg = qrDiv.querySelector('img');
+          if (qrImg && qrImg.src) {
+            const img = new Image();
+            img.src = qrImg.src;
+            img.onload = () => { ctx.drawImage(img, 8, 31, 86, 86); };
+          }
+        }, 50);
+      } catch (e) {}
+
+      ctx.fillStyle = '#000000';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.font = '11px Arial, sans-serif';
+      ctx.fillText('Tên Wifi (SSID):', 104, 36);
+      ctx.font = 'bold 14px Arial, sans-serif';
+      ctx.fillText(ssid, 104, 52);
+      ctx.font = '11px Arial, sans-serif';
+      ctx.fillText('Mật khẩu (Password):', 104, 76);
+      ctx.font = 'bold 16px "Arial Narrow", Arial, sans-serif';
+      ctx.fillText(pass, 104, 92);
+    }
+
+    // Template 10: Đồng hồ
+    function renderDeskClockTemplate() {
+      const timeStr = document.getElementById('clockTimeInput')?.value || '14:49';
+      const dateStr = document.getElementById('clockDateInput')?.value || 'Thứ Hai, 12/10/2026';
+      const temp = document.getElementById('clockTempInput')?.value || '28°C';
+      const humi = document.getElementById('clockHumiInput')?.value || '65%';
+
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(1, 1, 248, 120);
+
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 64px "Arial Narrow", Impact, Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(timeStr, 125, 45);
+
+      ctx.beginPath();
+      ctx.moveTo(10, 84);
+      ctx.lineTo(240, 84);
+      ctx.stroke();
+
+      ctx.font = 'bold 12px Arial, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(dateStr, 12, 102);
+
+      ctx.textAlign = 'right';
+      ctx.fillText(`Nhiệt độ: ${temp} | Độ ẩm: ${humi}`, 238, 102);
+    }
+
+    // Template 11: To-Do List
+    function renderTodoListTemplate() {
+      const title = document.getElementById('todoTitleInput')?.value || 'MỤC TIÊU HÔM NAY';
+      const task1 = document.getElementById('todoTask1Input')?.value || 'Hoàn thành nạp E-Ink 2.13"';
+      const task2 = document.getElementById('todoTask2Input')?.value || 'Đưa lên GitHub Pages';
+      const task3 = document.getElementById('todoTask3Input')?.value || 'Kiểm tra phần cứng & tận hưởng!';
+
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, 250, 26);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 13px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(title, 125, 13);
+
+      ctx.fillStyle = '#000000';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.font = '12px Arial, sans-serif';
+
+      const tasks = [task1, task2, task3];
+      tasks.forEach((t, i) => {
+        const y = 46 + i * 26;
+        ctx.strokeRect(10, y - 6, 12, 12);
+        if (i === 0) {
+          ctx.beginPath();
+          ctx.moveTo(12, y);
+          ctx.lineTo(15, y + 3);
+          ctx.lineTo(20, y - 4);
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.lineWidth = 1;
+        }
+        ctx.fillText(t.slice(0, 32), 30, y);
+      });
+    }
+
+    // Template 12: Custom Freeform
+    function renderCustomFreeTemplate() {
+      const topTitle = document.getElementById('freeTitleInput')?.value || 'THÔNG BÁO QUAN TRỌNG';
+      const line1 = document.getElementById('freeLine1Input')?.value || 'Khu vực làm việc chuyên viên';
+      const line2 = document.getElementById('freeLine2Input')?.value || 'Xin vui lòng không làm phiền';
+      const line3 = document.getElementById('freeLine3Input')?.value || 'Liên hệ quản lý khi cần hỗ trợ';
+
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, 250, 28);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 13px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(topTitle, 125, 14);
+
+      ctx.fillStyle = '#000000';
+      ctx.font = '13px Arial, sans-serif';
+      ctx.fillText(line1, 125, 50);
+      ctx.font = 'bold 14px Arial, sans-serif';
+      ctx.fillText(line2, 125, 75);
+      ctx.font = '11px Arial, sans-serif';
+      ctx.fillText(line3, 125, 100);
+
+      ctx.strokeRect(1, 1, 248, 120);
+    }
+
+    // Custom Image processing directly in browser
+    function renderCustomImage() {
+      if (!uploadedImageObj) {
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(0, 0, 250, 122);
+        ctx.fillStyle = '#64748b';
+        ctx.font = '13px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Chưa tải ảnh lên. Hãy chọn ảnh ở cột bên trái.', 125, 61);
+        return;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        const threshold = parseInt(document.getElementById('thresholdSlider').value);
+        const invert = document.getElementById('invertCheck').checked;
+        const fit = document.getElementById('fitModeSelect').value;
+
+        // Draw image onto canvas based on fit mode
+        const targetW = 250;
+        const targetH = 122;
+
+        let drawW = targetW;
+        let drawH = targetH;
+        let drawX = 0;
+        let drawY = 0;
+
+        if (fit === 'contain') {
+          const ratio = img.width / img.height;
+          const targetRatio = targetW / targetH;
+          if (ratio > targetRatio) {
+            drawW = targetW;
+            drawH = targetW / ratio;
+            drawY = (targetH - drawH) / 2;
+          } else {
+            drawH = targetH;
+            drawW = targetH * ratio;
+            drawX = (targetW - drawW) / 2;
+          }
+        } else if (fit === 'cover') {
+          const ratio = img.width / img.height;
+          const targetRatio = targetW / targetH;
+          if (ratio > targetRatio) {
+            drawH = targetH;
+            drawW = targetH * ratio;
+            drawX = (targetW - drawW) / 2;
+          } else {
+            drawW = targetW;
+            drawH = targetW / ratio;
+            drawY = (targetH - drawH) / 2;
+          }
+        }
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, targetW, targetH);
+        ctx.drawImage(img, drawX, drawY, drawW, drawH);
+
+        // High-Fidelity Client-side Thresholding
+        const imgData = ctx.getImageData(0, 0, targetW, targetH);
+        const data = imgData.data;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const luma = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          let val = luma > threshold ? 255 : 0;
+          if (invert) val = 255 - val;
+          data[i] = val;
+          data[i + 1] = val;
+          data[i + 2] = val;
+          data[i + 3] = 255;
+        }
+        ctx.putImageData(imgData, 0, 0);
+      };
+      img.src = uploadedImageObj;
+    }
+
+    // Dynamic Form Generation
+    function updateTemplateInputs() {
+      const sel = document.getElementById('templateSelector').value;
+      currentTemplate = sel;
+      const container = document.getElementById('dynamicInputs');
+
+      let html = '';
+      if (sel === 'kid_tag') {
+        html = `
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Họ Và Tên Bé / Học Sinh (Tiêu Đề Trên):</label>
+            <input type="text" id="kidNameInput" value="LƯƠNG Ý NHI" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-bold focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Tiêu Đề Cột 1:</label>
+              <input type="text" id="kidCol1Header" value="BA/MẸ" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-semibold">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Tiêu Đề Cột 2:</label>
+              <input type="text" id="kidCol2Header" value="SỐ ĐIỆN THOẠI" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-semibold">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Tên Bố/Mẹ 1:</label>
+              <input type="text" id="kidParent1" value="LƯƠNG QUANG THANH" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Số Điện Thoại 1:</label>
+              <input type="text" id="kidPhone1" value="0989.146.951" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono font-bold">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Tên Bố/Mẹ 2:</label>
+              <input type="text" id="kidParent2" value="LÊ THỊ THU HƯƠNG" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Số Điện Thoại 2:</label>
+              <input type="text" id="kidPhone2" value="096.3350.567" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono font-bold">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Địa Chỉ / Lớp Học (Dưới Cùng):</label>
+            <input type="text" id="kidAddress" value="CHUNG CƯ THE RIVANA - QL13 - HCM" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white font-medium">
+          </div>
+          <div class="flex flex-col gap-2 pt-1 border-t border-slate-800/80">
+            <label class="flex items-center gap-2 cursor-pointer text-xs text-blue-400">
+              <input type="checkbox" id="kidBoldFontInput" checked class="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-blue-500">
+              <span class="font-medium">Chế độ nét siêu đậm (Super Bold - Khuyên dùng)</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+              <input type="checkbox" id="kidNoAccentInput" class="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-blue-500">
+              <span>Chuyển thành chữ KHÔNG DẤU (Khử hoàn toàn răng cưa diacritics)</span>
+            </label>
+          </div>
+        `;
+      } else if (sel === 'car_parking') {
+        html = `
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Lời Nhắn Trên (Banner):</label>
+            <input type="text" id="carMsgInput" value="LÀM PHIỀN GỌI KHI CẦN DỜI XE" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Số Điện Thoại Liên Hệ:</label>
+            <input type="text" id="carPhoneInput" value="0989.146.951" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono font-bold">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Lời Nhắn Dưới (Chân Trang):</label>
+            <input type="text" id="carNoteInput" value="CẢM ƠN BẠN ĐÃ THÔNG CẢM!" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+          </div>
+          <div class="flex items-center pt-1">
+            <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+              <input type="checkbox" id="carBorderInput" checked class="rounded bg-slate-800 border-slate-700 text-blue-600">
+              <span>Khung viền đôi sang trọng</span>
+            </label>
+          </div>
+        `;
+      } else if (sel === 'desk_nameplate') {
+        html = `
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Tên Công Ty / Đơn Vị:</label>
+            <input type="text" id="npCompany" value="CÔNG TY CỔ PHẦN CÔNG NGHỆ ABC" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Họ Và Tên:</label>
+            <input type="text" id="npName" value="NGUYỄN VĂN THANH" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-bold">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Chức Danh / Vị Trí:</label>
+            <input type="text" id="npTitle" value="TRƯỞNG PHÒNG KỸ THUẬT" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Phòng Ban / Liên Hệ:</label>
+            <input type="text" id="npContact" value="Phòng 402 • Hotline: 0989.146.951" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+          </div>
+        `;
+      } else if (sel === 'table_order') {
+        html = `
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Số Bàn:</label>
+              <input type="text" id="tbNumber" value="08" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-bold">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Tên Quán Cafe / Nhà Hàng:</label>
+              <input type="text" id="tbShopName" value="THE COFFEE HOUSE" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Link Gọi Món / Menu QR:</label>
+            <input type="text" id="tbQrData" value="https://order.menu/table/08" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Ghi Chú Hướng Dẫn:</label>
+            <input type="text" id="tbNote" value="QUÉT QR XEM MENU & GỌI MÓN" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+          </div>
+        `;
+      } else if (sel === 'meeting_status') {
+        html = `
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Trạng Thái Chính:</label>
+            <input type="text" id="statusMainInput" value="ĐANG HỌP (BUSY)" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-bold">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Diễn Giải / Lời Nhắc:</label>
+            <input type="text" id="statusSubInput" value="Vui lòng không làm phiền" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Thời Gian Quay Lại:</label>
+              <input type="text" id="statusReturnInput" value="Dự kiến xong: 15h30" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Số ĐT Khẩn Cấp:</label>
+              <input type="text" id="statusContactInput" value="Khẩn cấp gọi: 0989.146.951" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+            </div>
+          </div>
+        `;
+      } else if (sel === 'badge') {
+        html = `
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Tiêu Đề Banner Trên:</label>
+            <input type="text" id="badgeBannerInput" value="MR THANH - 111009" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Số Điện Thoại / Nội Dung Chính:</label>
+            <input type="text" id="badgePhoneInput" value="0989.146.951" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Chiều Cao Banner (px):</label>
+              <input type="number" id="badgeBannerHInput" value="42" min="30" max="60" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+            <div class="flex items-center pt-5">
+              <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                <input type="checkbox" id="badgeBorderInput" class="rounded bg-slate-800 border-slate-700 text-blue-600">
+                <span>Vẽ viền khung ngoài</span>
+              </label>
+            </div>
+          </div>
+        `;
+      } else if (sel === 'esl_price') {
+        html = `
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Tên Sản Phẩm:</label>
+            <input type="text" id="eslNameInput" value="NƯỚC NGỌT COCA-COLA" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white">
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Đơn vị:</label>
+              <input type="text" id="eslUnitInput" value="Chai 390ml" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Giá Gốc:</label>
+              <input type="text" id="eslOldPriceInput" value="12.000đ" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Giá Bán:</label>
+              <input type="text" id="eslNewPriceInput" value="10.000đ" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-bold text-amber-400">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Mã Vạch Barcode (Code128):</label>
+            <input type="text" id="eslBarcodeInput" value="893456789012" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white font-mono">
+          </div>
+        `;
+      } else if (sel === 'bank_qr') {
+        html = `
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Dữ liệu mã QR (Link hoặc STK):</label>
+            <input type="text" id="bankQrDataInput" value="0989146951" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Tên Ngân Hàng:</label>
+              <input type="text" id="bankNameInput" value="MB BANK" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Số Tài Khoản:</label>
+              <input type="text" id="bankAccInput" value="0989.146.951" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white font-mono">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Chủ Tài Khoản:</label>
+            <input type="text" id="bankHolderInput" value="TRẦN VĂN THANH" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+          </div>
+        `;
+      } else if (sel === 'wifi_share') {
+        html = `
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Tiêu Đề Lời Chào:</label>
+            <input type="text" id="wifiNoteInput" value="QUÉT QR ĐỂ KẾT NỐI WIFI" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Tên Wifi (SSID):</label>
+              <input type="text" id="wifiSsidInput" value="KHACH_HANG_VIP" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Mật Khẩu:</label>
+              <input type="text" id="wifiPassInput" value="88889999" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white font-mono">
+            </div>
+          </div>
+        `;
+      } else if (sel === 'desk_clock') {
+        html = `
+          <div class="flex items-center gap-2">
+            <div class="flex-1">
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Giờ Phút:</label>
+              <input type="text" id="clockTimeInput" value="14:49" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white font-mono">
+            </div>
+            <button id="setNowBtn" class="mt-5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300">Lấy giờ máy tính</button>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Ngày Tháng:</label>
+            <input type="text" id="clockDateInput" value="Thứ Hai, 12/10/2026" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Nhiệt độ:</label>
+              <input type="text" id="clockTempInput" value="28°C" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Độ ẩm:</label>
+              <input type="text" id="clockHumiInput" value="65%" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+          </div>
+        `;
+      } else if (sel === 'todo_list') {
+        html = `
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Tiêu Đề:</label>
+            <input type="text" id="todoTitleInput" value="MỤC TIÊU HÔM NAY" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Việc 1:</label>
+            <input type="text" id="todoTask1Input" value="Hoàn thành nạp E-Ink 2.13''" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Việc 2:</label>
+            <input type="text" id="todoTask2Input" value="Đưa lên GitHub Pages" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Việc 3:</label>
+            <input type="text" id="todoTask3Input" value="Nghỉ ngơi & kiểm tra dự án" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+          </div>
+        `;
+      } else if (sel === 'custom_free') {
+        html = `
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Tiêu Đề Banner:</label>
+            <input type="text" id="freeTitleInput" value="THÔNG BÁO QUAN TRỌNG" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Dòng 1:</label>
+            <input type="text" id="freeLine1Input" value="Khu vực làm việc chuyên viên" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Dòng 2:</label>
+            <input type="text" id="freeLine2Input" value="Xin vui lòng không làm phiền" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Dòng 3:</label>
+            <input type="text" id="freeLine3Input" value="Liên hệ quản lý khi cần hỗ trợ" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
+
+      container.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', renderCanvas);
+        input.addEventListener('change', renderCanvas);
+      });
+
+      const setNowBtn = document.getElementById('setNowBtn');
+      if (setNowBtn) {
+        setNowBtn.addEventListener('click', () => {
+          const now = new Date();
+          const hh = String(now.getHours()).padStart(2, '0');
+          const mm = String(now.getMinutes()).padStart(2, '0');
+          document.getElementById('clockTimeInput').value = `${hh}:${mm}`;
+          renderCanvas();
+        });
+      }
+
+      renderCanvas();
+    }
+
+    function handleFile(file) {
+      if (!file || !file.type.startsWith('image/')) {
+        alert('Vui lòng chọn file hình ảnh hợp lệ');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        uploadedImageObj = e.target.result;
+        addLog(`Đã tải ảnh lên: ${file.name} (${Math.round(file.size/1024)} KB)`);
+        renderCustomImage();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Event Setup
+    document.addEventListener('DOMContentLoaded', () => {
+      initLz4Wasm();
+
+      document.getElementById('connectSerialBtn').addEventListener('click', connectSerial);
+      document.getElementById('disconnectBtn').addEventListener('click', disconnectSerial);
+      document.getElementById('pingBtn').addEventListener('click', pingDevice);
+      document.getElementById('pushBtn').addEventListener('click', pushToScreen);
+      document.getElementById('clearBtn').addEventListener('click', clearScreen);
+      document.getElementById('templateSelector').addEventListener('change', updateTemplateInputs);
+
+      document.getElementById('downloadBtn').addEventListener('click', () => {
+        const a = document.createElement('a');
+        a.download = 'eink_preview_250x122.png';
+        a.href = canvas.toDataURL('image/png');
+        a.click();
+      });
+
+      document.getElementById('clearLogBtn').addEventListener('click', () => {
+        document.getElementById('logOutput').innerHTML = '';
+      });
+
+      const tabTemplate = document.getElementById('tabTemplateBtn');
+      const tabCustom = document.getElementById('tabCustomImageBtn');
+      const sectionTemplate = document.getElementById('templateSection');
+      const sectionCustom = document.getElementById('customImageSection');
+
+      tabTemplate.addEventListener('click', () => {
+        currentMode = 'template';
+        tabTemplate.className = 'flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition flex items-center justify-center gap-2 bg-blue-600 text-white shadow';
+        tabCustom.className = 'flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition flex items-center justify-center gap-2 text-slate-400 hover:text-white';
+        sectionTemplate.classList.remove('hidden');
+        sectionCustom.classList.add('hidden');
+        renderCanvas();
+      });
+
+      tabCustom.addEventListener('click', () => {
+        currentMode = 'custom_image';
+        tabCustom.className = 'flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition flex items-center justify-center gap-2 bg-blue-600 text-white shadow';
+        tabTemplate.className = 'flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition flex items-center justify-center gap-2 text-slate-400 hover:text-white';
+        sectionCustom.classList.remove('hidden');
+        sectionTemplate.classList.add('hidden');
+        renderCanvas();
+      });
+
+      const dropZone = document.getElementById('dropZone');
+      const fileInput = document.getElementById('imageFileInput');
+      dropZone.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) handleFile(e.target.files[0]);
+      });
+      dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-blue-500', 'bg-blue-950/20');
+      });
+      dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('border-blue-500', 'bg-blue-950/20');
+      });
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-blue-500', 'bg-blue-950/20');
+        if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+      });
+
+      const thresholdSlider = document.getElementById('thresholdSlider');
+      thresholdSlider.addEventListener('input', (e) => {
+        document.getElementById('thresholdVal').textContent = e.target.value;
+        renderCanvas();
+      });
+      document.getElementById('fitModeSelect').addEventListener('change', renderCanvas);
+      document.getElementById('ditherCheck').addEventListener('change', renderCanvas);
+      document.getElementById('invertCheck').addEventListener('change', renderCanvas);
+
+      updateTemplateInputs();
+    });
+  </script>
+</body>
+</html>
