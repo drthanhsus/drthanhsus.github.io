@@ -587,11 +587,45 @@
   async function disconnectSerial() {
     try {
       await window.__epdHW.close();
-      document.getElementById('connectBtnText').textContent = "Chọn Cổng USB (CH340)";
+      document.getElementById('connectBtnText').textContent = "Cổng USB (CH340)";
       document.getElementById('connectSerialBtn').className = "flex items-center gap-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-1.5 rounded-lg transition shadow-sm";
       document.getElementById('pingDot').className = "w-2 h-2 rounded-full bg-slate-500";
       document.getElementById('disconnectBtn').classList.add('hidden');
-      addLog("Đã ngắt kết nối cổng giao tiếp.");
+      addLog("Đã ngắt kết nối cổng USB Serial.");
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function connectBle() {
+    if (!('bluetooth' in navigator)) {
+      alert("Trình duyệt của bạn không hỗ trợ Web Bluetooth API.\nVui lòng sử dụng Google Chrome hoặc Microsoft Edge.");
+      addLog("Trình duyệt không hỗ trợ Web Bluetooth API.", "error");
+      return;
+    }
+    try {
+      addLog("Đang mở hộp thoại quét Bluetooth (BLE)...");
+      const devName = await window.__epdHW.openBle();
+      document.getElementById('connectBleBtnText').textContent = "BLE: " + devName;
+      document.getElementById('connectBleBtn').className = "flex items-center gap-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-lg transition shadow-sm";
+      document.getElementById('disconnectBleBtn').classList.remove('hidden');
+      addLog("Đã kết nối Bluetooth thành công tới " + devName, "success");
+    } catch (err) {
+      if (err.name !== 'NotFoundError') {
+        addLog("Lỗi kết nối Bluetooth: " + err.message, "error");
+      } else {
+        addLog("Người dùng đã hủy chọn thiết bị Bluetooth.", "warning");
+      }
+    }
+  }
+
+  async function disconnectBle() {
+    try {
+      await window.__epdHW.closeBle();
+      document.getElementById('connectBleBtnText').textContent = "Bluetooth (BLE)";
+      document.getElementById('connectBleBtn').className = "flex items-center gap-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-1.5 rounded-lg transition shadow-sm";
+      document.getElementById('disconnectBleBtn').classList.add('hidden');
+      addLog("Đã ngắt kết nối Bluetooth BLE.");
     } catch (e) {
       console.error(e);
     }
@@ -599,7 +633,7 @@
 
   async function pingDevice() {
     if (!window.__epdHW.isReady()) {
-      addLog("Chưa kết nối cổng USB. Vui lòng bấm 'Chọn Cổng USB' trước.", "warning");
+      addLog("Chưa kết nối cổng USB. Vui lòng bấm 'Cổng USB' trước.", "warning");
       alert("Vui lòng chọn và kết nối cổng USB trước.");
       return;
     }
@@ -619,9 +653,12 @@
   }
 
   async function pushToScreen() {
-    if (!window.__epdHW.isReady()) {
+    const isSerial = window.__epdHW.isReady();
+    const isBle = window.__epdHW.isBleReady();
+
+    if (!isSerial && !isBle) {
       await connectSerial();
-      if (!window.__epdHW.isReady()) return;
+      if (!window.__epdHW.isReady() && !window.__epdHW.isBleReady()) return;
     }
 
     const pushBtn = document.getElementById('pushBtn');
@@ -630,14 +667,23 @@
     pushBtnText.textContent = "ĐANG XỬ LÝ VÀ NẠP...";
 
     try {
-      addLog("Đang xử lý dữ liệu hình ảnh...");
+      addLog("Đang xử lý dữ liệu hình ảnh chuẩn 250×128 pixel...");
       const raw8000 = window.__epdHW.extract(canvas, isRedMode());
 
-      addLog("Đang nạp vào màn hình...");
-      await window.__epdHW.send(raw8000);
-
-      addLog("Nạp thành công. Màn hình đang cập nhật nội dung mới.", "success");
-      alert("Nạp thành công. Màn hình đang hiển thị nội dung mới.");
+      if (window.__epdHW.isBleReady()) {
+        addLog("Đang nạp không dây qua Bluetooth BLE...");
+        await window.__epdHW.sendBle(raw8000, function(curr, tot) {
+          var pct = Math.round((curr * 100) / tot);
+          pushBtnText.textContent = "ĐANG TRUYỀN BLE " + pct + "%...";
+        });
+        addLog("Nạp qua Bluetooth BLE thành công! Màn hình đang quét nội dung mới.", "success");
+        alert("Nạp qua Bluetooth thành công! Màn hình đang cập nhật.");
+      } else {
+        addLog("Đang nạp qua cổng USB Serial...");
+        await window.__epdHW.send(raw8000);
+        addLog("Nạp thành công qua USB. Màn hình đang hiển thị nội dung mới.", "success");
+        alert("Nạp thành công qua USB. Màn hình đang hiển thị nội dung mới.");
+      }
     } catch (err) {
       addLog("Lỗi nạp màn hình: " + err.message, "error");
       alert("Lỗi: " + err.message);
