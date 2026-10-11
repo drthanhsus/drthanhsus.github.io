@@ -121,8 +121,8 @@
         <div>
           <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Chọn Mẫu Thiết Kế:</label>
           <select id="templateSelector" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none">
-            <optgroup label="MẪU THIẾT KẾ ĐẶC SẮC (MÀU ĐỎ & ĐEN, BỐ CỤC 2 CỘT)">
-              <option value="floral_card" selected>1. Thiệp Chúc Mừng & Tri Ân (Khung viền trang trí, hoa văn đỏ)</option>
+            <optgroup label="MẪU THIẾT KẾ ĐẶC SẮC (BỐ CỤC 2 CỘT, KHUNG ẢNH)">
+              <option value="floral_card" selected>1. Thiệp Chúc Mừng & Tri Ân (Khung viền trang trí cổ điển)</option>
               <option value="side_avatar_id">2. Thẻ Nhân Viên Chân Dung (Ảnh thẻ 3x4 bên trái, thông tin bên phải)</option>
               <option value="menu_dish">3. Thực Đơn Món Ăn & Đồ Uống (Ảnh món bên trái, giá và mô tả bên phải)</option>
               <option value="pet_id_cute">4. Thẻ Thú Cưng (Khung ảnh bé cưng, thông tin liên hệ khi thất lạc)</option>
@@ -148,6 +148,18 @@
               <option value="custom_free">22. Tùy Biến Tự Do (Tiêu đề trên và 3 dòng thông tin)</option>
             </optgroup>
           </select>
+        </div>
+
+        <!-- COLOR MODE SELECTION BAR (DEFAULT BLACK & WHITE) -->
+        <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-950/80 px-3.5 py-2.5 rounded-xl border border-slate-800">
+          <div class="flex flex-col">
+            <span class="text-xs font-semibold text-slate-200">Chế độ hiển thị màn hình:</span>
+            <span class="text-[10px] text-slate-400">Mặc định Trắng/Đen (Bảo toàn 100% nét chữ trên màn hình đơn sắc)</span>
+          </div>
+          <label class="flex items-center gap-2 cursor-pointer text-xs text-rose-400 hover:text-rose-300 font-medium bg-rose-950/30 px-2.5 py-1 rounded-lg border border-rose-900/40">
+            <input type="checkbox" id="enableRedAccentCheckbox" class="rounded bg-slate-800 border-slate-700 text-rose-600 focus:ring-rose-500">
+            <span>Bật màu đỏ (Chỉ dành cho màn 3 màu)</span>
+          </label>
         </div>
 
         <hr class="border-slate-800">
@@ -238,7 +250,7 @@
         </div>
 
         <p class="text-[11px] text-slate-500 text-center mt-3">
-          Hiển thị chuẩn xác từng điểm ảnh trên màn hình E-Ink 2.13 inch (Đen, Đỏ và Trắng).
+          Hiển thị chuẩn xác từng điểm ảnh trên màn hình E-Ink 2.13 inch.
         </p>
       </div>
 
@@ -306,7 +318,7 @@
     return new Uint8Array(_0xinst.memory.buffer, _0xout, _0xlen);
   }
 
-  function _0xextractBufferFromCanvas(_0xcvs) {
+  function _0xextractBufferFromCanvas(_0xcvs, _0xallowRed) {
     var _0xoff = document.createElement('canvas');
     _0xoff.width = 122;
     _0xoff.height = 250;
@@ -328,7 +340,7 @@
         var _0xg = _0xdata[_0xi + 1];
         var _0xb = _0xdata[_0xi + 2];
 
-        var _0xisRed = (_0xr > 150 && _0xr > _0xg * 1.6 && _0xr > _0xb * 1.6);
+        var _0xisRed = (_0xallowRed === true) && (_0xr > 140 && _0xr > _0xg * 1.5 && _0xr > _0xb * 1.5);
         var _0xlum = 0.299 * _0xr + 0.587 * _0xg + 0.114 * _0xb;
         var _0xisW = _0xlum > 185;
 
@@ -336,10 +348,12 @@
         var _0xbit = 7 - (_0xx % 8);
 
         if (_0xisRed) {
-          _0xbw[_0xbi] |= (1 << _0xbit);
-          _0xred[_0xbi] |= (1 << _0xbit);
+          _0xbw[_0xbi] |= (1 << _0xbit);  // White on BW plane
+          _0xred[_0xbi] |= (1 << _0xbit); // Red on Red plane
         } else if (_0xisW) {
-          _0xbw[_0xbi] |= (1 << _0xbit);
+          _0xbw[_0xbi] |= (1 << _0xbit);  // White
+        } else {
+          // Black (0 on BW, 0 on Red)
         }
       }
     }
@@ -442,6 +456,14 @@
   let uploadedImageObj = null;
   let templateCustomImgObj = null;
 
+  function isRedMode() {
+    return document.getElementById('enableRedAccentCheckbox')?.checked ?? false;
+  }
+
+  function getAccentColor() {
+    return isRedMode() ? '#EF4444' : '#000000';
+  }
+
   function addLog(msg, type = 'info') {
     const box = document.getElementById('logOutput');
     if (!box) return;
@@ -531,7 +553,7 @@
 
     try {
       addLog("Đang xử lý dữ liệu hình ảnh...");
-      const raw8000 = window.__epdHW.extract(canvas);
+      const raw8000 = window.__epdHW.extract(canvas, isRedMode());
 
       addLog("Đang nạp vào màn hình...");
       await window.__epdHW.send(raw8000);
@@ -572,7 +594,7 @@
   }
 
   // === VECTOR DRAWING HELPERS ===
-  function drawFloralCorners(x, y, w, h, color = '#EF4444') {
+  function drawFloralCorners(x, y, w, h, color = '#000000') {
     ctx.save();
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
@@ -612,11 +634,12 @@
     ctx.restore();
   }
 
-  function drawRose(cx, cy, r = 12, color = '#EF4444') {
+  function drawRose(cx, cy, r = 12, color = '#000000') {
     ctx.save();
+    const isRed = (color !== '#000000');
     ctx.fillStyle = color;
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = isRed ? '#000000' : '#FFFFFF';
+    ctx.lineWidth = isRed ? 1 : 1.5;
 
     for (let i = 0; i < 5; i++) {
       const angle = (i * Math.PI * 2) / 5;
@@ -627,23 +650,27 @@
       ctx.fill();
       ctx.stroke();
     }
-    ctx.fillStyle = '#991B1B';
+    ctx.fillStyle = isRed ? '#991B1B' : '#000000';
     ctx.beginPath();
     ctx.arc(cx, cy, r * 0.35, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = '#000000';
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.ellipse(cx - r * 0.9, cy + r * 0.5, r * 0.4, r * 0.2, -Math.PI / 6, 0, Math.PI * 2);
     ctx.fill();
+    ctx.stroke();
     ctx.beginPath();
     ctx.ellipse(cx + r * 0.9, cy + r * 0.5, r * 0.4, r * 0.2, Math.PI / 6, 0, Math.PI * 2);
     ctx.fill();
+    ctx.stroke();
     ctx.restore();
   }
 
-  function drawPawPrint(cx, cy, r = 10, color = '#EF4444') {
+  function drawPawPrint(cx, cy, r = 10, color = '#000000') {
     ctx.save();
     ctx.fillStyle = color;
     ctx.beginPath();
@@ -660,7 +687,7 @@
     ctx.restore();
   }
 
-  function drawCrown(cx, cy, w = 24, h = 16, color = '#EF4444') {
+  function drawCrown(cx, cy, w = 24, h = 16, color = '#000000') {
     ctx.save();
     ctx.fillStyle = color;
     ctx.strokeStyle = '#000000';
@@ -678,7 +705,7 @@
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = '#000000';
+    ctx.fillStyle = '#FFFFFF';
     [-w/2, 0, w/2].forEach(ox => {
       ctx.beginPath();
       ctx.arc(cx + ox, cy - h/2 + (ox === 0 ? 0 : h/6), 1.5, 0, Math.PI * 2);
@@ -717,7 +744,7 @@
     ctx.restore();
   }
 
-  function drawCoffeeCup(cx, cy, color = '#EF4444') {
+  function drawCoffeeCup(cx, cy, color = '#000000') {
     ctx.save();
     ctx.fillStyle = color;
     ctx.strokeStyle = '#000000';
@@ -847,16 +874,17 @@
     const title = document.getElementById('flTitle')?.value || 'CHÚC MỪNG SINH NHẬT';
     const msg = document.getElementById('flMsg')?.value || 'Chúc bạn luôn vui vẻ, hạnh phúc và thành công rực rỡ trong cuộc sống!';
     const sender = document.getElementById('flSender')?.value || 'Từ: Người bạn thân thiết';
+    const accent = getAccentColor();
 
-    drawFloralCorners(2, 2, 246, 118, '#EF4444');
+    drawFloralCorners(2, 2, 246, 118, accent);
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 1;
     ctx.strokeRect(6, 6, 238, 110);
 
     const hasImg = drawTemplateImage(templateCustomImgObj, 14, 18, 64, 86);
     if (!hasImg) {
-      drawRose(46, 52, 22, '#EF4444');
-      drawRose(32, 74, 14, '#EF4444');
+      drawRose(46, 52, 22, accent);
+      drawRose(32, 74, 14, accent);
       drawRose(60, 74, 14, '#000000');
     }
 
@@ -865,7 +893,7 @@
     ctx.lineTo(86, 108);
     ctx.stroke();
 
-    ctx.fillStyle = '#EF4444';
+    ctx.fillStyle = accent;
     ctx.font = 'bold 13px Arial, sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
@@ -875,7 +903,7 @@
     ctx.font = '11px Arial, sans-serif';
     wrapText(msg, 94, 38, 142, 16);
 
-    ctx.fillStyle = '#EF4444';
+    ctx.fillStyle = accent;
     ctx.font = 'bold italic 11px Arial, sans-serif';
     ctx.fillText(sender, 94, 94);
   }
@@ -887,6 +915,7 @@
     const role = document.getElementById('avRole')?.value || 'GIÁM ĐỐC KỸ THUẬT';
     const idCode = document.getElementById('avId')?.value || 'Mã NV: NV-8888';
     const phone = document.getElementById('avPhone')?.value || '0989.146.951';
+    const accent = getAccentColor();
 
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 1;
@@ -894,7 +923,7 @@
 
     ctx.fillStyle = '#F4F4F5';
     ctx.fillRect(10, 14, 68, 94);
-    ctx.strokeStyle = '#EF4444';
+    ctx.strokeStyle = accent;
     ctx.lineWidth = 2;
     ctx.strokeRect(10, 14, 68, 94);
 
@@ -915,11 +944,11 @@
     ctx.textBaseline = 'top';
     ctx.fillText(comp.toUpperCase(), 88, 14);
 
-    ctx.fillStyle = '#EF4444';
+    ctx.fillStyle = accent;
     ctx.font = 'bold 15px Arial, sans-serif';
     ctx.fillText(name.toUpperCase(), 88, 30);
 
-    ctx.fillStyle = '#EF4444';
+    ctx.fillStyle = accent;
     ctx.fillRect(88, 52, 148, 20);
     ctx.fillStyle = '#FFFFFF';
     ctx.font = 'bold 11px Arial, sans-serif';
@@ -937,30 +966,31 @@
     const dish = document.getElementById('mnDish')?.value || 'TRÀ SEN VÀNG KEM CHEESE';
     const price = document.getElementById('mnPrice')?.value || '45.000đ';
     const desc = document.getElementById('mnDesc')?.value || 'Hạt sen bùi béo kết hợp cốt trà thanh mát và lớp màng sữa thơm ngậy.';
+    const accent = getAccentColor();
 
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 1;
     ctx.strokeRect(2, 2, 246, 118);
 
-    ctx.strokeStyle = '#EF4444';
+    ctx.strokeStyle = accent;
     ctx.lineWidth = 1.5;
     ctx.strokeRect(10, 14, 72, 94);
     const hasImg = drawTemplateImage(templateCustomImgObj, 10, 14, 72, 94);
     if (!hasImg) {
-      drawCoffeeCup(46, 55, '#EF4444');
+      drawCoffeeCup(46, 55, accent);
       ctx.fillStyle = '#000000';
       ctx.font = 'bold 10px Arial, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('SPECIAL', 46, 92);
     }
 
-    ctx.fillStyle = '#EF4444';
+    ctx.fillStyle = accent;
     ctx.font = 'bold 13px Arial, sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.fillText(dish.toUpperCase().slice(0, 22), 90, 14);
 
-    ctx.fillStyle = '#EF4444';
+    ctx.fillStyle = accent;
     ctx.font = '12px Arial, sans-serif';
     ctx.fillText('★★★★★', 90, 32);
 
@@ -983,11 +1013,12 @@
     const breed = document.getElementById('ptBreed')?.value || 'Corgi Vàng Trắng • 1 Tuổi';
     const phone = document.getElementById('ptPhone')?.value || '0989.146.951';
     const note = document.getElementById('ptNote')?.value || 'Nếu em bị lạc, xin vui lòng gọi cho bố mẹ em nhé!';
+    const accent = getAccentColor();
 
-    drawPawPrint(18, 18, 8, '#EF4444');
+    drawPawPrint(18, 18, 8, accent);
     drawPawPrint(232, 18, 8, '#000000');
     drawPawPrint(18, 104, 8, '#000000');
-    drawPawPrint(232, 104, 8, '#EF4444');
+    drawPawPrint(232, 104, 8, accent);
 
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 1;
@@ -996,17 +1027,17 @@
     ctx.save();
     ctx.beginPath();
     ctx.arc(52, 61, 36, 0, Math.PI * 2);
-    ctx.strokeStyle = '#EF4444';
+    ctx.strokeStyle = accent;
     ctx.lineWidth = 2.5;
     ctx.stroke();
 
     const hasImg = drawTemplateImage(templateCustomImgObj, 16, 25, 72, 72);
     if (!hasImg) {
-      drawPawPrint(52, 61, 20, '#EF4444');
+      drawPawPrint(52, 61, 20, accent);
     }
     ctx.restore();
 
-    ctx.fillStyle = '#EF4444';
+    ctx.fillStyle = accent;
     ctx.font = 'bold 18px Arial, sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
@@ -1030,8 +1061,9 @@
     const title = document.getElementById('scTitle')?.value || 'PHIẾU GIẢM GIÁ ĐẶC BIỆT';
     const code = document.getElementById('scCode')?.value || 'VIP50K-2026';
     const exp = document.getElementById('scExp')?.value || 'Hạn dùng: 31/12/2026 • Áp dụng toàn hệ thống';
+    const accent = getAccentColor();
 
-    ctx.fillStyle = '#EF4444';
+    ctx.fillStyle = accent;
     ctx.fillRect(0, 0, 250, 24);
     ctx.fillStyle = '#FFFFFF';
     ctx.font = 'bold 12px Arial, sans-serif';
@@ -1039,7 +1071,7 @@
     ctx.textBaseline = 'middle';
     ctx.fillText('CHƯƠNG TRÌNH ƯU ĐÃI ĐẶC BIỆT', 125, 12);
 
-    ctx.fillStyle = '#EF4444';
+    ctx.fillStyle = accent;
     ctx.fillRect(8, 32, 76, 80);
     ctx.fillStyle = '#FFFFFF';
     ctx.font = 'bold 28px "Arial Narrow", Impact, Arial, sans-serif';
@@ -1057,12 +1089,12 @@
 
     ctx.save();
     ctx.setLineDash([4, 2]);
-    ctx.strokeStyle = '#EF4444';
+    ctx.strokeStyle = accent;
     ctx.lineWidth = 1.5;
     ctx.strokeRect(94, 52, 146, 28);
     ctx.restore();
 
-    ctx.fillStyle = '#EF4444';
+    ctx.fillStyle = accent;
     ctx.font = 'bold 15px "JetBrains Mono", Courier, monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -1084,13 +1116,14 @@
     const sciName = document.getElementById('btSciName')?.value || 'Monstera Deliciosa';
     const water = document.getElementById('btWater')?.value || 'Tưới nước: 2 lần/tuần (Độ ẩm cao)';
     const light = document.getElementById('btLight')?.value || 'Ánh sáng: Khuếch tán, bóng râm';
+    const accent = getAccentColor();
 
     drawFloralCorners(2, 2, 246, 118, '#000000');
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 1;
     ctx.strokeRect(4, 4, 242, 114);
 
-    ctx.strokeStyle = '#EF4444';
+    ctx.strokeStyle = accent;
     ctx.lineWidth = 1.5;
     ctx.strokeRect(10, 14, 70, 94);
 
@@ -1099,7 +1132,7 @@
       drawMonsteraLeaf(45, 61, 30, '#000000');
     }
 
-    ctx.fillStyle = '#EF4444';
+    ctx.fillStyle = accent;
     ctx.font = 'bold 12px Arial, sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
@@ -1118,7 +1151,7 @@
     ctx.fillText(water, 88, 62);
     ctx.fillText(light, 88, 80);
 
-    ctx.fillStyle = '#EF4444';
+    ctx.fillStyle = accent;
     ctx.font = 'italic 10px Arial, sans-serif';
     ctx.fillText('Chăm sóc cây bằng sự yêu thương', 88, 98);
   }
@@ -1129,12 +1162,13 @@
     const artist = document.getElementById('arArtist')?.value || 'Họa sĩ: Trần Minh Đức';
     const material = document.getElementById('arMat')?.value || 'Sơn dầu trên toan • 2026';
     const price = document.getElementById('arPrice')?.value || 'Giá niêm yết: 15.000.000 VNĐ';
+    const accent = getAccentColor();
 
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 1;
     ctx.strokeRect(3, 3, 244, 116);
 
-    ctx.strokeStyle = '#EF4444';
+    ctx.strokeStyle = accent;
     ctx.lineWidth = 2;
     ctx.strokeRect(10, 12, 76, 98);
 
@@ -1146,7 +1180,7 @@
       ctx.fillText('TÁC PHẨM', 48, 62);
     }
 
-    ctx.fillStyle = '#EF4444';
+    ctx.fillStyle = accent;
     ctx.font = 'bold 15px "Times New Roman", Georgia, serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
@@ -1164,7 +1198,7 @@
     ctx.lineTo(236, 80);
     ctx.stroke();
 
-    ctx.fillStyle = '#EF4444';
+    ctx.fillStyle = accent;
     ctx.font = 'bold 13px Arial, sans-serif';
     ctx.fillText(price, 96, 90);
   }
@@ -1175,13 +1209,14 @@
     const guest = document.getElementById('hwGuest')?.value || 'ÔNG LƯƠNG QUANG THANH';
     const room = document.getElementById('hwRoom')?.value || 'PHÒNG 802 (DELUXE)';
     const hotline = document.getElementById('hwHotline')?.value || 'Lễ tân 24/7: 0989.146.951';
+    const accent = getAccentColor();
 
-    drawFloralCorners(2, 2, 246, 118, '#EF4444');
+    drawFloralCorners(2, 2, 246, 118, accent);
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 1;
     ctx.strokeRect(6, 6, 238, 110);
 
-    drawCrown(125, 20, 26, 16, '#EF4444');
+    drawCrown(125, 20, 26, 16, accent);
 
     ctx.fillStyle = '#000000';
     ctx.font = 'bold 10px Arial, sans-serif';
@@ -1189,7 +1224,7 @@
     ctx.textBaseline = 'top';
     ctx.fillText(hotel.toUpperCase(), 125, 34);
 
-    ctx.fillStyle = '#EF4444';
+    ctx.fillStyle = accent;
     ctx.font = 'bold 16px "Times New Roman", Arial, sans-serif';
     ctx.fillText('CHÀO ĐÓN QUÝ KHÁCH', 125, 48);
 
@@ -1197,7 +1232,7 @@
     ctx.font = 'bold 15px Arial, sans-serif';
     ctx.fillText(guest.toUpperCase(), 125, 68);
 
-    ctx.fillStyle = '#EF4444';
+    ctx.fillStyle = accent;
     ctx.fillRect(40, 88, 170, 18);
     ctx.fillStyle = '#FFFFFF';
     ctx.font = 'bold 11px Arial, sans-serif';
@@ -1210,15 +1245,16 @@
     const quote = document.getElementById('qtText')?.value || 'HÃY LUÔN MỈM CƯỜI, ĐIỀU KỲ DIỆU SẼ ĐẾN VỚI BẠN!';
     const author = document.getElementById('qtAuthor')?.value || '— Chúc bạn một ngày tốt lành —';
     const dateStr = document.getElementById('qtDate')?.value || 'Ngày 12/10/2026';
+    const accent = getAccentColor();
 
-    drawFloralCorners(2, 2, 246, 118, '#EF4444');
+    drawFloralCorners(2, 2, 246, 118, accent);
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 1;
     ctx.strokeRect(5, 5, 240, 112);
 
-    drawRose(38, 61, 24, '#EF4444');
+    drawRose(38, 61, 24, accent);
 
-    ctx.fillStyle = '#EF4444';
+    ctx.fillStyle = accent;
     ctx.font = 'bold 24px "Times New Roman", serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
@@ -1228,7 +1264,7 @@
     ctx.font = 'bold 12px Arial, sans-serif';
     wrapText(quote, 82, 22, 154, 18);
 
-    ctx.fillStyle = '#EF4444';
+    ctx.fillStyle = accent;
     ctx.font = 'italic 11px Arial, sans-serif';
     ctx.fillText(author, 82, 80);
 
@@ -1243,37 +1279,38 @@
     const name = document.getElementById('rcName')?.value || 'LƯƠNG QUANG THANH';
     const cardId = document.getElementById('rcId')?.value || 'SỐ THẺ: 8888-9999-111009';
     const exp = document.getElementById('rcExp')?.value || 'HẠN THẺ: 12/2030';
+    const accent = getAccentColor();
 
-    ctx.strokeStyle = '#EF4444';
+    ctx.strokeStyle = accent;
     ctx.lineWidth = 2;
     ctx.strokeRect(3, 3, 244, 116);
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 1;
     ctx.strokeRect(6, 6, 238, 110);
 
-    ctx.strokeStyle = '#EF4444';
+    ctx.strokeStyle = accent;
     ctx.lineWidth = 1.5;
     ctx.strokeRect(12, 14, 68, 94);
     const hasImg = drawTemplateImage(templateCustomImgObj, 12, 14, 68, 94);
     if (!hasImg) {
-      drawCrown(46, 45, 30, 20, '#EF4444');
+      drawCrown(46, 45, 30, 20, accent);
       ctx.fillStyle = '#000000';
       ctx.font = 'bold 10px Arial, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('HỘI VIÊN VIP', 46, 85);
     }
 
-    ctx.fillStyle = '#EF4444';
+    ctx.fillStyle = accent;
     ctx.font = 'bold 12px Arial, sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText(club.toUpperCase(), 90, 16);
+    ctx.fillText('👑 ' + club.toUpperCase(), 90, 16);
 
     ctx.fillStyle = '#000000';
     ctx.font = 'bold 15px Arial, sans-serif';
     ctx.fillText(name.toUpperCase(), 90, 36);
 
-    ctx.fillStyle = '#EF4444';
+    ctx.fillStyle = accent;
     ctx.fillRect(90, 56, 144, 20);
     ctx.fillStyle = '#FFFFFF';
     ctx.font = 'bold 11px Arial, sans-serif';
@@ -1844,7 +1881,7 @@
       html = `
         ${uploadSnippet}
         <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1">Tiêu Đề (Màu Đỏ Nổi Bật):</label>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Tiêu Đề:</label>
           <input type="text" id="flTitle" value="CHÚC MỪNG SINH NHẬT" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-bold">
         </div>
         <div>
@@ -2391,6 +2428,7 @@
     document.getElementById('pushBtn').addEventListener('click', pushToScreen);
     document.getElementById('clearBtn').addEventListener('click', clearScreen);
     document.getElementById('templateSelector').addEventListener('change', updateTemplateInputs);
+    document.getElementById('enableRedAccentCheckbox').addEventListener('change', renderCanvas);
 
     document.getElementById('downloadBtn').addEventListener('click', () => {
       const a = document.createElement('a');
