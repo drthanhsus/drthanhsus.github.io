@@ -191,7 +191,7 @@
             <input type="file" id="imageFileInput" accept="image/*" class="hidden">
             <svg class="w-10 h-10 text-slate-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
             <p class="text-sm font-medium text-slate-300">Kéo thả ảnh vào đây hoặc <span class="text-blue-400 underline">Chọn tệp</span></p>
-            <p class="text-xs text-slate-500 mt-1">Ảnh sẽ tự động co giãn tối ưu chuẩn 250×128 pixel</p>
+            <p class="text-xs text-slate-500 mt-1">Ảnh sẽ tự động co giãn tối ưu chuẩn 250×122 pixel</p>
           </div>
         </div>
 
@@ -247,7 +247,7 @@
         <div class="w-full flex items-center justify-between mb-4">
           <div class="flex items-center gap-2">
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Xem Trước Trực Quan</span>
-            <span class="text-[10px] bg-slate-800 text-slate-300 font-mono px-2 py-0.5 rounded-md">250×128 px</span>
+            <span class="text-[10px] bg-slate-800 text-slate-300 font-mono px-2 py-0.5 rounded-md">250×122 px</span>
           </div>
           <span class="text-xs text-emerald-400 font-medium flex items-center gap-1">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
@@ -257,8 +257,8 @@
 
         <!-- E-INK SCREEN FRAME BEZEL -->
         <div class="eink-bezel p-1.5 bg-zinc-900 w-full max-w-[440px] flex items-center justify-center">
-          <div class="bg-white overflow-hidden rounded-[2px] w-full relative flex items-center justify-center border border-zinc-700" style="aspect-ratio: 250 / 128;">
-            <canvas id="previewCanvas" width="250" height="128" class="w-full h-full pixelated bg-white block" style="aspect-ratio: 250 / 128;"></canvas>
+          <div class="bg-white overflow-hidden rounded-[2px] w-full relative flex items-center justify-center border border-zinc-700" style="aspect-ratio: 250 / 122;">
+            <canvas id="previewCanvas" width="250" height="122" class="w-full h-full pixelated bg-white block" style="aspect-ratio: 250 / 122;"></canvas>
           </div>
         </div>
 
@@ -333,29 +333,29 @@
 
   function _0xextractBufferFromCanvas(_0xcvs, _0xallowRed) {
     var _0xoff = document.createElement('canvas');
-    _0xoff.width = 128;
+    _0xoff.width = 122;
     _0xoff.height = 250;
     var _0xctx = _0xoff.getContext('2d');
     _0xctx.fillStyle = '#FFFFFF';
-    _0xctx.fillRect(0, 0, 128, 250);
-    _0xctx.translate(128, 0);
+    _0xctx.fillRect(0, 0, 122, 250);
+    _0xctx.translate(122, 0);
     _0xctx.rotate(Math.PI / 2);
     _0xctx.drawImage(_0xcvs, 0, 0);
 
-    var _0xdata = _0xctx.getImageData(0, 0, 128, 250).data;
+    var _0xdata = _0xctx.getImageData(0, 0, 122, 250).data;
     var _0xbw = new Uint8Array(4000);
     var _0xred = new Uint8Array(4000);
 
     for (var _0xy = 0; _0xy < 250; _0xy++) {
-      for (var _0xx = 0; _0xx < 128; _0xx++) {
-        var _0xi = (_0xy * 128 + _0xx) * 4;
+      for (var _0xx = 0; _0xx < 122; _0xx++) {
+        var _0xi = (_0xy * 122 + _0xx) * 4;
         var _0xr = _0xdata[_0xi];
         var _0xg = _0xdata[_0xi + 1];
         var _0xb = _0xdata[_0xi + 2];
 
         var _0xisRed = (_0xallowRed === true) && (_0xr > 140 && _0xr > _0xg * 1.5 && _0xr > _0xb * 1.5);
         var _0xlum = 0.299 * _0xr + 0.587 * _0xg + 0.114 * _0xb;
-        var _0xisW = _0xlum > 185;
+        var _0xisW = _0xlum > 145;
 
         var _0xbi = _0xy * 16 + Math.floor(_0xx / 8);
         var _0xbit = 7 - (_0xx % 8);
@@ -667,7 +667,7 @@
     pushBtnText.textContent = "ĐANG XỬ LÝ VÀ NẠP...";
 
     try {
-      addLog("Đang xử lý dữ liệu hình ảnh chuẩn 250×128 pixel...");
+      addLog("Đang xử lý dữ liệu hình ảnh chuẩn 250×122 pixel...");
       const raw8000 = window.__epdHW.extract(canvas, isRedMode());
 
       if (window.__epdHW.isBleReady()) {
@@ -959,7 +959,7 @@
   // === TEMPLATE RENDERING ===
   function renderCanvas() {
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, 250, 128);
+    ctx.fillRect(0, 0, 250, 122);
 
     if (currentMode === 'custom_image') {
       renderCustomImage();
@@ -1146,7 +1146,7 @@
 
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 1;
-    ctx.strokeRect(4, 4, 242, 120);
+    ctx.strokeRect(4, 4, 242, 114);
 
     ctx.save();
     ctx.beginPath();
@@ -1231,7 +1231,7 @@
 
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 1;
-    ctx.strokeRect(1, 1, 248, 126);
+    ctx.strokeRect(1, 1, 248, 120);
   }
 
   // 6. Bảng Cây Cảnh & Sinh Thái
@@ -1245,7 +1245,7 @@
     drawFloralCorners(2, 2, 246, 118, '#000000');
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 1;
-    ctx.strokeRect(4, 4, 242, 120);
+    ctx.strokeRect(4, 4, 242, 114);
 
     ctx.strokeStyle = accent;
     ctx.lineWidth = 1.5;
@@ -1593,12 +1593,12 @@
     ctx.font = 'bold 36px "Arial Narrow", Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(phoneText, 125, bannerHeight + (128 - bannerHeight) / 2);
+    ctx.fillText(phoneText, 125, bannerHeight + (122 - bannerHeight) / 2);
 
     if (hasBorder) {
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 1;
-      ctx.strokeRect(1, 1, 248, 126);
+      ctx.strokeRect(1, 1, 248, 120);
     }
   }
 
@@ -1612,7 +1612,7 @@
 
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 1;
-    ctx.strokeRect(1, 1, 248, 126);
+    ctx.strokeRect(1, 1, 248, 120);
 
     ctx.fillStyle = '#000000';
     ctx.font = 'bold 13px Arial, sans-serif';
@@ -1677,7 +1677,7 @@
 
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 1;
-    ctx.strokeRect(1, 1, 248, 126);
+    ctx.strokeRect(1, 1, 248, 120);
 
     const qrDiv = document.getElementById('qrCodeContainer');
     qrDiv.innerHTML = '';
@@ -1694,8 +1694,8 @@
     } catch (e) {}
 
     ctx.beginPath();
-    ctx.moveTo(125, 1);
-    ctx.lineTo(125, 127);
+    ctx.moveTo(122, 1);
+    ctx.lineTo(122, 121);
     ctx.stroke();
 
     ctx.fillStyle = '#000000';
@@ -1840,7 +1840,7 @@
 
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 1;
-    ctx.strokeRect(1, 1, 248, 126);
+    ctx.strokeRect(1, 1, 248, 120);
 
     ctx.fillStyle = '#000000';
     ctx.font = 'bold 64px "Arial Narrow", Impact, Arial, sans-serif';
@@ -1922,14 +1922,14 @@
     ctx.font = '11px Arial, sans-serif';
     ctx.fillText(line3, 125, 100);
 
-    ctx.strokeRect(1, 1, 248, 126);
+    ctx.strokeRect(1, 1, 248, 120);
   }
 
   // === CUSTOM IMAGE PROCESSOR ===
   function renderCustomImage() {
     if (!uploadedImageObj) {
       ctx.fillStyle = '#f8fafc';
-      ctx.fillRect(0, 0, 250, 128);
+      ctx.fillRect(0, 0, 250, 122);
       ctx.fillStyle = '#64748b';
       ctx.font = '13px Arial, sans-serif';
       ctx.textAlign = 'center';
@@ -1944,7 +1944,7 @@
       const invert = document.getElementById('invertCheck').checked;
       const fit = document.getElementById('fitModeSelect').value;
 
-      const targetW = 250, targetH = 128;
+      const targetW = 250, targetH = 122;
       let drawW = targetW, drawH = targetH, drawX = 0, drawY = 0;
 
       const ratio = img.width / img.height;
@@ -2558,7 +2558,7 @@
 
     document.getElementById('downloadBtn').addEventListener('click', () => {
       const a = document.createElement('a');
-      a.download = 'eink_preview_250x128.png';
+      a.download = 'eink_preview_250x122.png';
       a.href = canvas.toDataURL('image/png');
       a.click();
     });

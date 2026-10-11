@@ -46,29 +46,29 @@ def get_obfuscated_core_engine():
 
   function _0xextractBufferFromCanvas(_0xcvs, _0xallowRed) {{
     var _0xoff = document.createElement('canvas');
-    _0xoff.width = 128;
+    _0xoff.width = 122;
     _0xoff.height = 250;
     var _0xctx = _0xoff.getContext('2d');
     _0xctx.fillStyle = '#FFFFFF';
-    _0xctx.fillRect(0, 0, 128, 250);
-    _0xctx.translate(128, 0);
+    _0xctx.fillRect(0, 0, 122, 250);
+    _0xctx.translate(122, 0);
     _0xctx.rotate(Math.PI / 2);
     _0xctx.drawImage(_0xcvs, 0, 0);
 
-    var _0xdata = _0xctx.getImageData(0, 0, 128, 250).data;
+    var _0xdata = _0xctx.getImageData(0, 0, 122, 250).data;
     var _0xbw = new Uint8Array(4000);
     var _0xred = new Uint8Array(4000);
 
     for (var _0xy = 0; _0xy < 250; _0xy++) {{
-      for (var _0xx = 0; _0xx < 128; _0xx++) {{
-        var _0xi = (_0xy * 128 + _0xx) * 4;
+      for (var _0xx = 0; _0xx < 122; _0xx++) {{
+        var _0xi = (_0xy * 122 + _0xx) * 4;
         var _0xr = _0xdata[_0xi];
         var _0xg = _0xdata[_0xi + 1];
         var _0xb = _0xdata[_0xi + 2];
 
         var _0xisRed = (_0xallowRed === true) && (_0xr > 140 && _0xr > _0xg * 1.5 && _0xr > _0xb * 1.5);
         var _0xlum = 0.299 * _0xr + 0.587 * _0xg + 0.114 * _0xb;
-        var _0xisW = _0xlum > 185;
+        var _0xisW = _0xlum > 145;
 
         var _0xbi = _0xy * 16 + Math.floor(_0xx / 8);
         var _0xbit = 7 - (_0xx % 8);
